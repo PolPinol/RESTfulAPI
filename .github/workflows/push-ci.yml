@@ -14,8 +14,6 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@v3
-        with:
-          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v3
@@ -109,51 +107,6 @@ jobs:
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
           
-          # Fetch the latest changes
-          git fetch origin main
-          
-          # Check out the main branch
-          git checkout main
-          
-          # Merge the latest main into the current branch to avoid conflicts
-          git merge origin/main
-
-          # Add the updated pom.xml
           git add pom.xml
-          
-          # Commit the version bump
           git commit -m "Bump version to ${{ env.NEW_VERSION }}"
-          
-          # Push the changes
           git push origin main
-
-      - name: Release Lock
-        if: success()
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const lockFile = 'version-bump.lock';
-            await github.rest.repos.deleteFile({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              path: lockFile,
-              message: 'Release version bump lock',
-              sha: (await github.rest.repos.getContent({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                path: lockFile
-              })).data.sha,
-              committer: {
-                name: 'github-actions',
-                email: 'github-actions@github.com'
-              },
-              author: {
-                name: 'github-actions',
-                email: 'github-actions@github.com'
-              }
-            });
-
-      - name: Handle Push Failure
-        if: failure()
-        run: |
-          echo "Push failed due to a conflict. Please retry the workflow."
