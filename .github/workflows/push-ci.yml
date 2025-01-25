@@ -1,9 +1,12 @@
-name: Pull Request CI
+name: Main CI
 
 on:
   push:
     branches:
       - main
+
+permissions:
+  contents: write
 
 jobs:
   full-pipeline:
@@ -12,15 +15,59 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@v2
+        with:
+          ref: main
 
       - name: Set up JDK 21
         uses: actions/setup-java@v2
         with:
-          distribution: 'temurin'
+          distribution: temurin
           java-version: 21
 
-      - name: Build & Test
+      - name: Build & Test & Lint
         run: mvn clean verify
 
-      - name: Static linter
-        run: mvn checkstyle:check
+      - name: Bump patch version
+        id: bump_version
+        run: |
+          # 1) Read current version from pom.xml
+          CURRENT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
+          echo "Current version: $CURRENT_VERSION"
+
+          # 2) Parse into major.minor.patch
+          IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
+
+          # 3) Increment the patch
+          patch=$((patch + 1))
+
+          # 4) Create the new version string
+          NEW_VERSION="$major.$minor.$patch"
+
+          echo "Bumping to new version: $NEW_VERSION"
+
+          # 5) Use Maven Versions Plugin to set the new version (no backups)
+          mvn versions:set -DnewVersion="${NEW_VERSION}" -DgenerateBackupPoms=false
+
+          # Save for later steps
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
+      - name: Commit and push the new version
+        run: |
+          # Retrieve the new version from GitHub env
+          NEW_VERSION=${{ env.NEW_VERSION }}
+
+          git config user.name "github-actions"
+          git config user.email "github-actions@github.com"
+
+          git add pom.xml
+          git commit -m "Bump version to ${NEW_VERSION}"
+          git push origin main
+
+      - name: Build artifact at the new version
+        run: mvn clean package
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: RESTfulAPIApp
+          path: target/*.jar
