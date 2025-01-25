@@ -14,7 +14,7 @@
 
     <groupId>com.salle</groupId>
     <artifactId>RESTfulAPIApp</artifactId>
-    <version>1.0.0</version> <!-- Starting version -->
+    <version>1.0.1</version> <!-- Starting version -->
     <name>RESTfulAPIApp</name>
     <description>RESTful API for la Salle</description>
     <url/>
