@@ -9,13 +9,11 @@ permissions:
   contents: write
 
 jobs:
-  full-pipeline:
+  build_test_release:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repository
         uses: actions/checkout@v2
-        with:
-          ref: main
 
       - name: Set up JDK 21
         uses: actions/setup-java@v2
@@ -23,9 +21,11 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      # 1) Build, test, lint, etc.
       - name: Build & Test & Lint
         run: mvn clean verify
 
+      # 2) Bump patch version *locally*
       - name: Bump patch version
         id: bump_version
         run: |
@@ -41,15 +41,44 @@ jobs:
 
           # 4) Create the new version string
           NEW_VERSION="$major.$minor.$patch"
-          echo "Bumping to new version: $NEW_VERSION"
+          echo "New version: $NEW_VERSION"
 
-          # 5) Use Maven Versions Plugin to set the new version (no backups)
-          mvn versions:set -DnewVersion="${NEW_VERSION}" -DgenerateBackupPoms=false
+          # 5) Update the pom.xml (no backups)
+          mvn versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false
 
-          # Save for later steps
+          # Make it available to later steps
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
+      # 3) Re-build with the new version
+      - name: Build artifact with new version
+        run: mvn clean package
+
+      # 4) Create a GitHub Release with the new version
+      - name: Create GitHub Release
+        id: create_release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: "v${{ env.NEW_VERSION }}"
+          release_name: "v${{ env.NEW_VERSION }}"
+          draft: false
+          prerelease: false
+
+      # 5) Upload the Jar to that Release
+      - name: Upload JAR to Release
+        uses: actions/upload-release-asset@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          upload_url: ${{ steps.create_release.outputs.upload_url }}
+          asset_path: target/*.jar
+          asset_name: "RESTfulAPIApp-${{ env.NEW_VERSION }}.jar"
+          asset_content_type: application/java-archive
+
+      # 6) If everything succeeded above, now commit & push the bumped version to main.
       - name: Commit and push the new version
+        if: ${{ success() }}
         run: |
           NEW_VERSION=${{ env.NEW_VERSION }}
 
@@ -59,24 +88,3 @@ jobs:
           git add pom.xml
           git commit -m "Bump version to ${NEW_VERSION}"
           git push origin main
-
-      - name: Build artifact at the new version
-        run: mvn clean package
-
-      - name: Create GitHub Release
-        id: create_release
-        uses: actions/create-release@v1
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: v${{ env.NEW_VERSION }}
-          release_name: "v${{ env.NEW_VERSION }}"
-          draft: false
-          prerelease: false
-
-      - name: Upload JAR to Release
-        uses: actions/upload-release-asset@v1
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/*.jar
-          asset_name: "RESTfulAPIApp-${{ env.NEW_VERSION }}.jar"
-          asset_content_type: application/java-archive
