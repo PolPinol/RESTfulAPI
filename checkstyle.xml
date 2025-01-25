@@ -13,6 +13,10 @@
         <module name="EmptyBlock"/>
         <module name="EmptyCatchBlock"/>
         <module name="EmptyStatement"/>
+        <module name="UnusedImports"/>
+        <module name="Indentation">
+            <property name="basicOffset" value="4"/>
+        </module>
     </module>
 
 </module>
