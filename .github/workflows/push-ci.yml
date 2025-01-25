@@ -21,39 +21,23 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      # 1) Build, test, lint, etc.
-      - name: Build & Test & Lint
+      - name: Build, Test, and Lint
         run: mvn clean verify
 
-      # 2) Bump patch version *locally*
       - name: Bump patch version
         id: bump_version
         run: |
-          # 1) Read current version from pom.xml
           CURRENT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          echo "Current version: $CURRENT_VERSION"
-
-          # 2) Parse into major.minor.patch
           IFS='.' read -r major minor patch <<< "$CURRENT_VERSION"
-
-          # 3) Increment the patch
           patch=$((patch + 1))
-
-          # 4) Create the new version string
           NEW_VERSION="$major.$minor.$patch"
-          echo "New version: $NEW_VERSION"
 
-          # 5) Update the pom.xml (no backups)
           mvn versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false
-
-          # Make it available to later steps
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
-      # 3) Re-build with the new version
       - name: Build artifact with new version
         run: mvn clean package
 
-      # 4) Create a GitHub Release with the new version
       - name: Create GitHub Release
         id: create_release
         uses: actions/create-release@v1
@@ -65,26 +49,19 @@ jobs:
           draft: false
           prerelease: false
 
-      # 5) Upload the Jar to that Release
       - name: Upload JAR to Release
         uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: target/*.jar
+          asset_path: "**/target/*.jar"
           asset_name: "RESTfulAPIApp-${{ env.NEW_VERSION }}.jar"
           asset_content_type: application/java-archive
 
-      # 6) If everything succeeded above, now commit & push the bumped version to main.
       - name: Commit and push the new version
         if: ${{ success() }}
         run: |
-          NEW_VERSION=${{ env.NEW_VERSION }}
-
           git config user.name "github-actions"
           git config user.email "github-actions@github.com"
-
           git add pom.xml
-          git commit -m "Bump version to ${NEW_VERSION}"
+          git commit -m "Bump version to ${{ env.NEW_VERSION }}"
           git push origin main
