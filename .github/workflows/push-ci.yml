@@ -105,26 +105,27 @@ jobs:
           # Update the version in the relevant file (e.g., values.yaml or deployment.yaml)
           sed -i "s|polpinol98/restfulapiapp:.*|polpinol98/restfulapiapp:${{ env.NEW_VERSION }}|g" app/RESTfulAPI-deployment.yaml
 
-          # Set up Git for the commit
-          git config --global user.email "mate.alfredo98@gmail.com"
-          git config --global user.name "GitHub Actions"
+          # Verify the change was made
+          cat app/RESTfulAPI-deployment.yaml
 
-          # Set up authentication using GITHUB_TOKEN
-          git remote set-url origin https://github.com/${{ github.repository }}.git
-          git config --global credential.helper store
-          echo "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com" > ~/.git-credentials
+          # Check if the file was modified
+          git diff --exit-code
+          if [ $? -eq 1 ]; then
+            # Set up Git for the commit
+            git config --global user.email "mate.alfredo98@gmail.com"
+            git config --global user.name "GitHub Actions"
 
-          # Stash any uncommitted changes if present (this prevents issues if there are uncommitted changes)
-          git stash || echo "No changes to stash"
+            # Set up authentication using GITHUB_TOKEN
+            git remote set-url origin https://github.com/${{ github.repository }}.git
+            git config --global credential.helper store
+            echo "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com" > ~/.git-credentials
 
-          # Fetch latest changes from the remote repository
-          git fetch origin
+            # Commit the changes
+            git commit -am "Update image version to ${NEW_VERSION}"
 
-          # Pull changes from the remote repository before committing (using --rebase to avoid merge commits)
-          git pull --rebase origin main
-
-          # Commit the changes
-          git commit -am "Update image version to ${NEW_VERSION}"
-
-          # Push the changes to the repository
-          git push origin main
+            # Push the changes to the repository
+            git push origin main
+          else
+            echo "No changes to commit."
+          fi
+      
