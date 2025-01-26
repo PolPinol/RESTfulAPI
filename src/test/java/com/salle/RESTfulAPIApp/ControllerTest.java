@@ -10,17 +10,13 @@ import org.springframework.test.web.servlet.result.MockMvcResultMatchers;
 
 @WebMvcTest(Controller.class)
 class ControllerTest {
-	@Autowired
-	private MockMvc mockMvc;
+  @Autowired private MockMvc mockMvc;
 
+  @Test
+  public void testHelloEndpoint() throws Exception {
 
-	@Test
-	public void testHelloEndpoint() throws Exception {
-
-		mockMvc.perform(MockMvcRequestBuilders.get("/hello"))
-				.andExpect(MockMvcResultMatchers.status().isOk())
-				.andExpect(MockMvcResultMatchers.content().string("Bye, World 4.0!"));
-	}
+    mockMvc.perform(MockMvcRequestBuilders.get("/hello"))
+        .andExpect(MockMvcResultMatchers.status().isOk())
+        .andExpect(MockMvcResultMatchers.content().string("Bye, World 5.0!"));
+  }
 }
-
-
