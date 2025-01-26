@@ -2,7 +2,7 @@ FROM openjdk:21-jdk-slim
 
 WORKDIR /app
 
-COPY target/RESTfulAPIApp-${NEW_VERSION}.jar app.jar
+COPY app.jar app.jar
 
 EXPOSE 8080
 
