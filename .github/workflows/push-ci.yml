@@ -47,6 +47,10 @@ jobs:
           
           echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
 
+      - name: Set new version in pom.xml
+        run: |
+          mvn versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false
+
       - name: Build, Test, and Lint
         run: mvn clean verify
 
