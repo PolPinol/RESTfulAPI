@@ -114,10 +114,13 @@ jobs:
           git config --global credential.helper store
           echo "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com" > ~/.git-credentials
 
+          # Stash any uncommitted changes if present (this prevents issues if there are uncommitted changes)
+          git stash || echo "No changes to stash"
+
           # Fetch latest changes from the remote repository
           git fetch origin
 
-          # Pull changes from the remote repository before committing
+          # Pull changes from the remote repository before committing (using --rebase to avoid merge commits)
           git pull --rebase origin main
 
           # Commit the changes
