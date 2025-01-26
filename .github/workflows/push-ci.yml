@@ -14,6 +14,8 @@ jobs:
     steps:
       - name: Check out the repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
       - name: Set up JDK 21
         uses: actions/setup-java@v3
@@ -21,14 +23,32 @@ jobs:
           distribution: temurin
           java-version: 21
 
+      - name: Get latest tag
+        id: get_latest_tag
+        run: |
+          LATEST_TAG=$(git describe --tags `git rev-list --tags --max-count=1`)
+          echo "LATEST_TAG=$LATEST_TAG" >> $GITHUB_ENV
+
+      - name: Calculate new version
+        id: calculate_version
+        run: |
+          # Remove the 'v' prefix
+          VERSION=${LATEST_TAG#v}
+          echo "Latest version: $VERSION"
+          
+          # Split version into major, minor, and patch
+          IFS='.' read -r major minor patch <<< "$VERSION"
+          
+          # Increment the patch version
+          patch=$((patch + 1))
+          
+          # Construct the new version string
+          NEW_VERSION="$major.$minor.$patch"
+          
+          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
+
       - name: Build, Test, and Lint
         run: mvn clean verify
-
-      - name: Extract Current Version
-        id: extract_version
-        run: |
-          CURRENT_VERSION=$(mvn help:evaluate -Dexpression=project.version -q -DforceStdout)
-          echo "CURRENT_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
 
       - name: Create GitHub Release
         id: create_release
@@ -36,8 +56,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          tag_name: "v${{ env.CURRENT_VERSION }}"
-          release_name: "v${{ env.CURRENT_VERSION }}"
+          tag_name: "v${{ env.NEW_VERSION }}"
+          release_name: "v${{ env.NEW_VERSION }}"
           draft: false
           prerelease: false
 
@@ -47,66 +67,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: "target/RESTfulAPIApp-${{ env.CURRENT_VERSION }}.jar" 
-          asset_name: "RESTfulAPIApp-${{ env.CURRENT_VERSION }}.jar"
+          asset_path: "target/RESTfulAPIApp-${{ env.NEW_VERSION }}.jar" 
+          asset_name: "RESTfulAPIApp-${{ env.NEW_VERSION }}.jar"
           asset_content_type: application/java-archive
-
-      - name: Bump Patch Version
-        id: bump_version
-        run: |
-          # Split the current version into major, minor, and patch
-          IFS='.' read -r major minor patch <<< "${CURRENT_VERSION}"
-          
-          # Increment the patch version
-          patch=$((patch + 1))
-          
-          # Construct the new version string
-          NEW_VERSION="$major.$minor.$patch"
-
-          # Update the version in pom.xml without creating a backup POM
-          mvn versions:set -DnewVersion="$NEW_VERSION" -DgenerateBackupPoms=false
-          
-          # Export the new version as an environment variable
-          echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-
-      - name: Acquire Lock
-        id: lock
-        uses: actions/github-script@v6
-        with:
-          script: |
-            const lockFile = 'version-bump.lock';
-            const { data: contents } = await github.rest.repos.getContent({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              path: lockFile
-            }).catch(() => null);
-            
-            if (contents) {
-              throw new Error('Another version bump is in progress.');
-            }
-            
-            await github.rest.repos.createOrUpdateFileContents({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              path: lockFile,
-              message: 'Acquire version bump lock',
-              content: Buffer.from('locked').toString('base64'),
-              committer: {
-                name: 'github-actions',
-                email: 'github-actions@github.com'
-              },
-              author: {
-                name: 'github-actions',
-                email: 'github-actions@github.com'
-              }
-            });
-
-      - name: Commit and Push the New Version
-        if: success()
-        run: |
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          
-          git add pom.xml
-          git commit -m "Bump version to ${{ env.NEW_VERSION }}"
-          git push origin main
