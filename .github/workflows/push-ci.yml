@@ -98,11 +98,25 @@ jobs:
           docker push polpinol98/restfulapiapp:latest    
       - name: Update CD repository with new version
         run: |
+          # Clone the CD repository
           git clone https://github.com/PolPinol/RESTfulAPI-CD.git
           cd RESTfulAPI-CD
-          # Update the version in the relevant file (example: values.yaml or deployment.yaml)
+
+          # Update the version in the relevant file (e.g., values.yaml or deployment.yaml)
           sed -i "s|polpinol98/restfulapiapp:.*|polpinol98/restfulapiapp:${{ env.NEW_VERSION }}|g" app/RESTfulAPI-deployment.yaml
+
+          # Set up Git for the commit
           git config --global user.email "mate.alfredo98@gmail.com"
           git config --global user.name "GitHub Actions"
+
+          # Set up authentication using GITHUB_TOKEN
+          git remote set-url origin https://github.com/${{ github.repository }}.git
+          git config --global credential.helper store
+          echo "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com" > ~/.git-credentials
+
+          # Commit the changes
           git commit -am "Update image version to ${NEW_VERSION}"
+
+          # Push the changes to the repository
           git push origin main
+      
