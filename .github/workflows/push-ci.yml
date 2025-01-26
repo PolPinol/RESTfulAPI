@@ -96,3 +96,17 @@ jobs:
         run: |
           docker push polpinol98/restfulapiapp:${{ env.NEW_VERSION }}
           docker push polpinol98/restfulapiapp:latest
+
+      - name: Merge to main branch
+        run: |
+        
+          git checkout main
+          git pull origin main
+            
+          
+          git merge $GITHUB_SHA --no-ff -m "Merge new version ${NEW_VERSION} into main"
+            
+         
+          git push origin main
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
