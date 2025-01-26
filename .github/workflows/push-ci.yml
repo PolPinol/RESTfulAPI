@@ -114,9 +114,14 @@ jobs:
           git config --global credential.helper store
           echo "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com" > ~/.git-credentials
 
+          # Fetch latest changes from the remote repository
+          git fetch origin
+
+          # Pull changes from the remote repository before committing
+          git pull --rebase origin main
+
           # Commit the changes
           git commit -am "Update image version to ${NEW_VERSION}"
 
           # Push the changes to the repository
           git push origin main
-      
