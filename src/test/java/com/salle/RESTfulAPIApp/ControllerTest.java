@@ -17,6 +17,6 @@ class ControllerTest {
 
     mockMvc.perform(MockMvcRequestBuilders.get("/hello"))
         .andExpect(MockMvcResultMatchers.status().isOk())
-        .andExpect(MockMvcResultMatchers.content().string("Bye, World 12.0!"));
+        .andExpect(MockMvcResultMatchers.content().string("Bye, World 13.0!"));
   }
 }
